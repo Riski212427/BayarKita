@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BayarKita Pro - Portal Pembayaran Multi-Layanan & Admin Panel</title>
+    <!-- Tailwind CSS & Font Awesome Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#059669',
+                        adminPrimary: '#4f46e5'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* CSS Print Utility untuk Cetak Struk */
+        @media print {
+            body * { visibility: hidden; }
+            #receiptModalContent, #receiptModalContent * { visibility: visible; }
+            #receiptModalContent { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 antialiased min-h-screen">
+    <!-- SCREEN 1: FAKE LOGIN SYSTEM -->
+    <div id="view-login" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900">
+        <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-6 border border-white/20">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-emerald-900/30">
+                    <i class="fa-solid fa-vault"></i>
+                </div>
+                <h2 class="text-2xl font-black tracking-tight text-gray-900">BayarKita Gateway</h2>
+                <p class="text-xs text-gray-500 font-medium">Sistem Simulasi Pembayaran & Manajemen Tagihan Kampus</p>
+            </div>
+            <form id="formLogin" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-2">Pilih Role Akses</label>
+                    <select id="loginRole" onchange="adjustLoginHint()" class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-semibold focus:outline-none focus:border-emerald-500 transition-all bg-white">
+                        <option value="user">Pengguna (Mahasiswa / Umum)</option>
+                        <option value="admin">Administrator Panel</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-2">Username</label>
+                    <input type="text" id="loginUser" required placeholder="Masukkan username" class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-2">Password</label>
+                    <input type="password" id="loginPass" required placeholder="••••••••" class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                </div>
+                <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <p id="loginHint" class="text-[11px] text-gray-500 leading-relaxed font-medium"><i class="fa-solid fa-circle-info text-emerald-600 mr-1"></i> Hint Pengguna: Gunakan username apa saja bebas (Contoh: riski).</p>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-sm tracking-wide shadow-lg transition-all transform active:scale-[0.98]">Masuk Ke Sistem</button>
+            </form>
+        </div>
+    </div>
+    <!-- SCREEN 2: MAIN WORKSPACE APP (HIDDEN ON START) -->
+    <div id="app-workspace" class="hidden min-h-screen flex">
+        
+        <!-- SIDEBAR NAVIGATION CONTAINER -->
+        <aside id="sidebar" class="bg-white w-64 fixed inset-y-0 left-0 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out border-r border-gray-200 flex flex-col justify-between">
+            <div>
+                <!-- Brand Title Dinamis Sesuai Role -->
+                <div id="sidebarBrand" class="h-16 flex items-center px-6 border-b border-gray-100 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                    <i class="fa-solid fa-wallet text-2xl mr-3"></i>
+                    <span class="text-xl font-bold tracking-wider">BayarKita</span>
+                </div>
+                <!-- NAV MENU: ROLE USER -->
+                <nav id="nav-user-menu" class="p-4 space-y-1 hidden">
+                    <a href="#" onclick="switchSection('user-dashboard')" data-section="user-dashboard" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl bg-emerald-50 text-emerald-600 transition-all">
+                        <i class="fa-solid fa-chart-pie w-6 text-lg"></i> Beranda User
+                    </a>
+                    <a href="#" onclick="switchSection('user-tagihan')" data-section="user-tagihan" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                        <i class="fa-solid fa-file-invoice-dollar w-6 text-lg"></i> Bayar Tagihan
+                    </a>
+                    <a href="#" onclick="switchSection('user-spp')" data-section="user-spp" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                        <i class="fa-solid fa-graduation-cap w-6 text-lg"></i> Cicilan SPP Kuliah
+                    </a>
+                    <a href="#" onclick="switchSection('user-pulsa')" data-section="user-pulsa" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                        <i class="fa-solid fa-mobile-screen w-6 text-lg"></i> Isi Pulsa & Paket
+                    </a>
+                    <a href="#" onclick="switchSection('user-riwayat')" data-section="user-riwayat" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                        <i class="fa-solid fa-clock-rotate-left w-6 text-lg"></i> Histori Mutasi
+                    </a>
+                </nav>
+                <!-- NAV MENU: ROLE ADMIN -->
+                <nav id="nav-admin-menu" class="p-4 space-y-1 hidden">
+                    <a href="#" onclick="switchSection('admin-dashboard')" data-section="admin-dashboard" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl bg-indigo-50 text-indigo-600 transition-all">
+                        <i class="fa-solid fa-gauge-high w-6 text-lg"></i> Admin Dashboard
+                    </a>
+                    <a href="#" onclick="switchSection('admin-spp')" data-section="admin-spp" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                        <i class="fa-solid fa-database w-6 text-lg"></i> Kelola Data SPP
+                    </a>
+                    <a href="#" onclick="switchSection('admin-history')" data-section="admin-history" class="nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 transition-all">
+                        <i class="fa-solid fa-globe w-6 text-lg"></i> Log Transaksi Global
+                    </a>
+                </nav>
+            </div>
+            <!-- Keluar Akun Session Button -->
+            <div class="p-4 border-t border-gray-100">
+                <button onclick="handleLogout()" class="w-full flex items-center justify-center px-4 py-2.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all">
+                    <i class="fa-solid fa-arrow-right-from-bracket mr-2"></i> Keluar Sistem (Logout)
+                </button>
+            </div>
+        </aside>
+        <!-- RIGHT PANEL ELEMENT CONTAINER -->
+        <div class="flex-1 md:pl-64 flex flex-col min-h-screen">
+            <!-- TOP HEAD TOOLBAR NAVBAR -->
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
+                <button onclick="toggleSidebar()" class="md:hidden text-gray-600 focus:outline-none p-2 rounded-lg hover:bg-gray-100">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <div class="text-sm font-bold text-gray-500" id="appBreadcrumb">Menu Utama</div>
+                
+                <div class="flex items-center space-x-3">
+                    <div class="text-right hidden sm:block">
+                        <span id="badgeRole" class="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 text-gray-600">ROLE</span>
+                        <p id="profileName" class="text-xs font-bold text-gray-700">User Profile</p>
+                    </div>
+                    <div id="avatarBox" class="w-9 h-9 rounded-xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-sm shadow">RA</div>
+                </div>
+            </header>
+
+            <main class="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+                <!-- USER SECTION: DASHBOARD -->
+                <section id="view-user-dashboard" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 rounded-3xl p-6 text-white shadow-xl flex flex-col justify-between relative overflow-hidden">
+                            <div class="absolute -right-10 -bottom-10 opacity-10 text-9xl"><i class="fa-solid fa-wallet"></i></div>
+                            <div>
+                                <p class="text-emerald-100 text-xs font-medium tracking-wide">Dompet Simulasi (E-Wallet)</p>
+                                <h2 id="userBalanceText" class="text-3xl md:text-4xl font-extrabold mt-1 tracking-tight">Rp 10.000.000</h2>
+                            </div>
+                            <div class="flex space-x-3 mt-6">
+                                <button onclick="showToast('Fitur ini tidak tersedia di mode simulasi frontend.', 'info')" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-xl text-xs font-bold transition-all"><i class="fa-solid fa-plus-circle mr-1"></i> Isi Saldo</button>
+                                <button onclick="switchSection('user-riwayat')" class="bg-white text-emerald-800 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md">Lihat Mutasi</button>
+                            </div>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <span class="bg-amber-100 text-amber-800 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded">Pengumuman</span>
+                                <h3 class="font-bold text-gray-800 mt-2 text-sm">Batas Akhir Pelunasan SPP</h3>
+                                <p class="text-xs text-gray-500 mt-1 leading-relaxed">Segera bayar cicilan kuliah Anda untuk mengaktifkan cetak kartu UTS di portal SIAKAD.</p>
+                            </div>
+                            <button onclick="switchSection('user-spp')" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 inline-flex items-center mt-4">Cek SPP Kuliah <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                        </div>
+                    </div>
+                </section>
+                <!-- USER SECTION: BAYAR TAGIHAN -->
+                <section id="view-user-tagihan" class="hidden space-y-6">
+                    <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                        <h2 class="text-lg font-black text-gray-800 mb-4">Pembayaran Tagihan Bulanan</h2>
+                        <div class="flex space-x-2 border-b border-gray-100 pb-3 mb-6 overflow-x-auto hide-scrollbar">
+                            <button onclick="setActiveBillTab('pln')" id="tab-pln" class="bill-tab px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white transition-all">Listrik PLN</button>
+                            <button onclick="setActiveBillTab('pdam')" id="tab-pdam" class="bill-tab px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-all">PDAM Air</button>
+                            <button onclick="setActiveBillTab('internet')" id="tab-internet" class="bill-tab px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-all">Internet & TV</button>
+                        </div>
+                        <form id="formGeneralBill" onsubmit="handleCheckBill(event)" class="space-y-4 max-w-md">
+                            <div>
+                                <label id="billInputLabel" class="block text-xs font-bold text-gray-600 uppercase mb-2">ID Pelanggan Listrik PLN</label>
+                                <input type="text" id="billCustomerId" required placeholder="Masukkan ID Pelanggan" class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                                <p id="billInputError" class="text-[11px] text-red-500 font-medium mt-1 hidden">ID Pelanggan minimal harus berukuran 8 digit angka!</p>
+                            </div>
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl text-xs font-bold shadow-md transition-all flex items-center">
+                                <span id="billBtnText">Cek Tagihan</span>
+                                <div id="billBtnSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
+                            </button>
+                        </form>
+                        <div id="billResultContainer" class="mt-6 border-t border-gray-100 pt-6 hidden"></div>
+                    </div>
+                </section>
+                <!-- USER SECTION: CICILAN SPP -->
+                <section id="view-user-spp" class="hidden space-y-6">
+                    <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                        <div class="max-w-md space-y-2">
+                            <h2 class="text-lg font-black text-gray-800">Manifes Data Cicilan SPP</h2>
+                            <p class="text-xs text-gray-500">Ketik Nomor Induk Mahasiswa (NIM) anda untuk menampilkan daftar billing.</p>
+                            <form onsubmit="handleCheckSpp(event)" class="space-y-3 pt-2">
+                                <input type="text" id="sppNimInput" required placeholder="Contoh: 202310001" class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center">
+                                    <span id="sppBtnText">Ambil Manifes SPP</span>
+                                    <div id="sppBtnSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
+                                </button>
+                            </form>
+                        </div>
+                        <div id="sppResultWrapper" class="mt-6 border-t border-gray-100 pt-6 hidden space-y-4">
+                            <div class="bg-gray-50 p-4 rounded-xl flex justify-between text-xs font-bold">
+                                <div><p class="text-gray-400 uppercase">Nama Lengkap</p><p id="sppStudentName" class="text-gray-800 text-sm font-black">-</p></div>
+                                <div class="text-right"><p class="text-gray-400 uppercase">Fakultas / Prodi</p><p class="text-gray-700">Teknik Informatika (S1)</p></div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-400 uppercase"><tr class="border-b"><th class="p-3 w-12">Pilih</th><th class="p-3">Nama Deskripsi Item</th><th class="p-3">Biaya</th><th class="p-3 text-center">Status</th></tr></thead><tbody id="sppTableBody" class="divide-y"></tbody></table>
+                            </div>
+                            <div id="sppCheckoutPanel" class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center hidden">
+                                <div><p class="text-xs font-bold text-emerald-800">Total Terpilih (<span id="sppCountChecked">0</span>)</p><h3 id="sppTotalAmountText" class="text-lg font-black text-emerald-900">Rp 0</h3></div>
+                                <button onclick="processSppPayment()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider uppercase">Bayar Tagihan</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <!-- USER SECTION: ISI PULSA -->
+                <section id="view-user-pulsa" class="hidden space-y-6">
+                    <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                        <h2 class="text-lg font-black text-gray-800 mb-4">Top-Up Pulsa Telepon</h2>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6 text-center text-[10px] font-black">
+                            <div id="prov-telkomsel" class="provider-card p-3 border border-gray-200 rounded-xl opacity-30">TELKOMSEL</div>
+                            <div id="prov-indosat" class="provider-card p-3 border border-gray-200 rounded-xl opacity-30">INDOSAT</div>
+                            <div id="prov-xl" class="provider-card p-3 border border-gray-200 rounded-xl opacity-30">XL AXIATA</div>
+                            <div id="prov-tri" class="provider-card p-3 border border-gray-200 rounded-xl opacity-30">TRI (3)</div>
+                            <div id="prov-smartfren" class="provider-card p-3 border border-gray-200 rounded-xl opacity-30">SMARTFREN</div>
+                            <div id="prov-axis" class="provider-card p-3 border border-gray-200 rounded-xl opacity-30">AXIS</div>
+                        </div>
+                        <div class="max-w-md space-y-4">
+                            <input type="text" id="pulsaPhoneInput" oninput="detectProvider()" placeholder="Masukkan No HP (Contoh: 0812...)" class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                            <p id="pulsaPhoneError" class="text-[11px] text-red-500 font-medium hidden">Nomor HP wajib dimulai angka 08 serta berisi 10-13 digit!</p>
+                            <div id="pulsaDenomContainer" class="hidden space-y-2"><label class="block text-xs font-bold text-gray-600 uppercase">Pilih Nominal Vouching</label><div class="grid grid-cols-2 gap-3">
+                                <button onclick="selectPulsaDenom(10000, 11500)" class="p-3 border border-gray-200 rounded-xl text-left hover:border-emerald-500 transition-all"><span class="text-xs block font-bold text-gray-700">Pulsa Rp 10.000</span><span class="text-[11px] font-medium text-emerald-600">Harga: Rp 11.500</span></button>
+                                <button onclick="selectPulsaDenom(50000, 51000)" class="p-3 border border-gray-200 rounded-xl text-left hover:border-emerald-500 transition-all"><span class="text-xs block font-bold text-gray-700">Pulsa Rp 50.000</span><span class="text-[11px] font-medium text-emerald-600">Harga: Rp 51.000</span></button>
+                            </div></div>
+                        </div>
+                    </div>
+                </section>
+                <!-- USER SECTION: RIWAYAT PRIBADI -->
+                <section id="view-user-riwayat" class="hidden space-y-6">
+                    <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                        <h2 class="text-lg font-black text-gray-800 mb-4">Histori Mutasi Akun Saya</h2>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-400 uppercase"><tr class="border-b"><th class="p-3">Waktu / Kode ID</th><th class="p-3">Produk</th><th class="p-3">No. Target</th><th class="p-3">Total Bayar</th><th class="p-3 text-center">Metode</th></tr></thead><tbody id="userHistoryTableBody" class="divide-y text-gray-600"></tbody></table>
+                        </div>
+                    </div>
+                </section>
+                <!-- ADMIN SECTION: DASHBOARD -->
+                <section id="view-admin-dashboard" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
+                            <p class="text-xs font-bold text-gray-400 uppercase">Total Omset Sukses</p>
+                            <h3 id="adminStatRevenue" class="text-xl font-black text-indigo-600 mt-1">Rp 0</h3>
+                        </div>
+                        <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
+                            <p class="text-xs font-bold text-gray-400 uppercase">Volume Transaksi Global</p>
+                            <h3 id="adminStatCount" class="text-xl font-black text-gray-800 mt-1">0 Transaksi</h3>
+                        </div>
+                        <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
+                            <p class="text-xs font-bold text-gray-400 uppercase">Total User Terdaftar</p>
+                            <h3 class="text-xl font-black text-teal-600 mt-1">3 Mahasiswa (Dummy)</h3>
+                        </div>
+                    </div>
+                    <div class="bg-indigo-900 text-white p-5 rounded-2xl flex items-center justify-between shadow-lg">
+                        <div class="space-y-1"><h4 class="text-sm font-bold">Konsol Kontrol Administrator Terbuka</h4><p class="text-xs text-indigo-200">Anda memegang penuh kendali merubah manifes tagihan & melihat audit log finansial.</p></div>
+                        <i class="fa-solid fa-shield-halved text-3xl text-indigo-400 opacity-60"></i>
+                    </div>
+                </section>
+                <!-- ADMIN SECTION: KELOLA DATA SPP MAHASISWA -->
+                <section id="view-admin-spp" class="hidden space-y-6">
+                    <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-black text-gray-800">Master Data Billing SPP Kampus</h2>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded">Database Aktif</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs"><thead class="bg-slate-100 text-slate-500 uppercase"><tr class="border-b"><th class="p-3">NIM</th><th class="p-3">Nama Mahasiswa</th><th class="p-3">Deskripsi Komponen Tagihan</th><th class="p-3">Nominal</th><th class="p-3 text-center">Status</th><th class="p-3 text-center">Aksi Operasional</th></tr></thead><tbody id="adminSppTableBody" class="divide-y text-gray-600"></tbody></table>
+                        </div>
+                    </div>
+                </section>
+                <!-- ADMIN SECTION: LOG TRANSAKSI GLOBAL SYSTEM -->
+                <section id="view-admin-history" class="hidden space-y-6">
+                    <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-black text-gray-800">Audit Trail: Transaksi Sistem Global</h2>
+                            <button onclick="clearGlobalLogs()" class="text-red-500 bg-red-50 hover:bg-red-100 text-[11px] font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-eraser mr-1"></i> Wipe Logs</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs"><thead class="bg-slate-800 text-slate-200 uppercase"><tr class="border-b"><th class="p-3">Tanggal / ID TRX</th><th class="p-3">Produk</th><th class="p-3">Nomor Tujuan</th><th class="p-3">Total Dana</th><th class="p-3">Metode</th><th class="p-3">Status</th></tr></thead><tbody id="adminHistoryTableBody" class="divide-y text-gray-600"></tbody></table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <!-- MODAL COMPONENT: USER CHECKOUT BOX -->
+    <div id="checkoutModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl">
+            <div class="flex justify-between items-center"><h3 class="text-base font-bold text-gray-800">Konfirmasi Lembar Tagihan</h3><button onclick="closeCheckoutModal()" class="text-gray-400 hover:text-gray-600">&times;</button></div>
+            <div class="bg-gray-50 p-4 rounded-xl space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-gray-400">Layanan</span><span id="checkProduct" class="font-bold text-gray-800">-</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">ID / Target</span><span id="checkTarget" class="font-bold text-gray-800">-</span></div>
+                <div class="flex justify-between border-t border-dashed pt-2 font-black text-sm text-emerald-600"><span>Total</span><span id="checkTotal">-</span></div>
+            </div>
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-gray-600 uppercase">Pilih Metode Pembayaran</label>
+                <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-emerald-500"><input type="radio" name="paymentMethod" value="Virtual Account" checked><span class="ml-2 text-xs font-bold text-gray-700">Virtual Account (Simulasi Transfer Bank)</span></label>
+                <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-emerald-500"><input type="radio" name="paymentMethod" value="QRIS" class="text-emerald-600"><span class="ml-2 text-xs font-bold text-gray-700">QRIS (Gunakan Saldo QRIS Simulasi)</span></label>
+                <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-emerald-500"><input type="radio" name="paymentMethod" value="Saldo Dompet"><span class="ml-2 text-xs font-bold text-gray-700">Saldo Dompet Elektronik Saya</span></label>
+            </div>
+            <button onclick="executePayment()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center">
+                <span id="payBtnText">Selesaikan Pembayaran</span>
+                <div id="payBtnSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
+            </button>
+        </div>
+    </div>
+    <!-- MODAL COMPONENT: STRUK DIGITAL (PRINTABLE) -->
+    <div id="receiptModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-6 shadow-2xl">
+            <div id="receiptModalContent" class="space-y-4 text-xs">
+                <div class="text-center border-b border-dashed pb-4">
+                    <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 text-lg"><i class="fa-solid fa-check-double"></i></div>
+                    <h4 class="font-black text-sm text-gray-800 uppercase">Transaksi Berhasil</h4>
+                    <p class="text-[9px] text-gray-400 mt-0.5">Nota Digital Lunas BayarKita</p>
+                </div>
+                <div id="receiptDetails" class="space-y-2 text-gray-600"></div>
+                <div class="text-center text-[9px] text-gray-400 border-t border-dashed pt-4">Simpan struk ini sebagai lampiran validasi universitas.</div>
+            </div>
+            <div class="flex space-x-2 no-print">
+                <button onclick="window.print()" class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-xl text-xs font-bold"><i class="fa-solid fa-print mr-1"></i> Print</button>
+                <button onclick="closeReceiptModal()" class="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-xs font-bold text-center">Tutup</button>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL COMPONENT: ADMIN VALUE EDIT COMPONENT -->
+    <div id="adminEditModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-xl">
+            <h3 class="text-sm font-bold text-gray-800">Ubah Status Rekaman Tagihan</h3>
+            <div class="space-y-3">
+                <label class="block text-xs font-bold text-gray-500">Status Pembayaran</label>
+                <select id="editSppStatus" class="w-full p-2.5 border rounded-xl text-xs font-semibold bg-white">
+                    <option value="unpaid">BELUM BAYAR (Unpaid)</option>
+                    <option value="paid">LUNAS (Paid)</option>
+                </select>
+            </div>
+            <div class="flex space-x-2 text-xs font-bold pt-2">
+                <button onclick="closeAdminEditModal()" class="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg">Batal</button>
+                <button onclick="saveAdminSppStatus()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL COMPONENT: ADMIN VALUE EDIT COMPONENT -->
+    <div id="adminEditModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-xl">
+            <h3 class="text-sm font-bold text-gray-800">Ubah Status Rekaman Tagihan</h3>
+            <div class="space-y-3">
+                <label class="block text-xs font-bold text-gray-500">Status Pembayaran</label>
+                <select id="editSppStatus" class="w-full p-2.5 border rounded-xl text-xs font-semibold bg-white">
+                    <option value="unpaid">BELUM BAYAR (Unpaid)</option>
+                    <option value="paid">LUNAS (Paid)</option>
+                </select>
+            </div>
+            <div class="flex space-x-2 text-xs font-bold pt-2">
+                <button onclick="closeAdminEditModal()" class="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg">Batal</button>
+                <button onclick="saveAdminSppStatus()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+    <!-- FLOATING TOAST APP CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- MAIN CONTROL JAVASCRIPT APPLICATION -->
+    <script>
+        // DATABASE INTERNAL (DUMMY SISI CLIENT)
+        const DATABASE = {
+            pln: {
+                "123456789012": { name: "Riski Romdoni Aji", amount: 245000, desc: "Tagihan PLN Listrik Rumah Periode Juni 2026" },
+                "888888888888": { name: "Budi Santoso", amount: 512000, desc: "Tagihan Ruko Industri Masif PLN" }
+            },
+            pdam: {
+                "112233445566": { name: "Siti Nurhaliza", amount: 89000, desc: "Tagihan Pemakaian Air Air Bersih PDAM" }
+            },
+            internet: {
+                "998877665544": { name: "Ahmad Fauzan", amount: 385000, desc: "Tagihan IndiHome TriplePlay 50Mbps" }
+            },
+            spp: {
+                "202310001": {
+                    name: "Ahmad Fauzan",
+                    items: [
+                        { id: "spp-1", desc: "SPP Semester Ganjil - Cicilan 1", amount: 2500000, status: "unpaid" },
+                        { id: "spp-2", desc: "SPP Semester Ganjil - Cicilan 2", amount: 2500000, status: "unpaid" }
+                    ]
+                },
+                "202310045": {
+                    name: "Siti Nurhaliza",
+                    items: [
+                        { id: "spp-3", desc: "SPP Semester Ganjil - Cicilan 1", amount: 2500000, status: "paid" },
+                        { id: "spp-4", desc: "Uang Lab & Praktikum Digital", amount: 750000, status: "unpaid" }
+                    ]
+                },
+                "202310089": {
+                    name: "Budi Santoso",
+                    items: [
+                        { id: "spp-5", desc: "SPP Semester Ganjil - Cicilan 1", amount: 2500000, status: "paid" }
+                    ]
+                }
+            }
+        };
+        // RUNTIME RUNNING SYSTEM STATE
+        let appState = {
+            currentRole: null,      // 'user' atau 'admin'
+            currentUser: "",        // Nama login aktf
+            balance: 10000000,      // Rp 10.000.000 default simulation money
+            activeTabBill: 'pln',
+            currentCheckout: null,
+            history: [],            // Log Transaksi Terjadwal
+            adminEditing: null      // Pointer editing status SPP
+        };
+        // LOGIN & ACCESSIBILITY CONTROLLER SYSTEM
+        function adjustLoginHint() {
+            const role = document.getElementById('loginRole').value;
+            const hint = document.getElementById('loginHint');
+            if(role === 'admin') {
+                hint.innerHTML = `<i class="fa-solid fa-shield text-indigo-600 mr-1"></i> Hint Admin: Gunakan username: <b class="text-indigo-600">admin</b> & password: <b class="text-indigo-600">admin123</b>`;
+            } else {
+                hint.innerHTML = `<i class="fa-solid fa-circle-info text-emerald-600 mr-1"></i> Hint Pengguna: Gunakan username apa saja bebas (Contoh: riski).`;
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const role = document.getElementById('loginRole').value;
+            const user = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value;
+
+            if(role === 'admin') {
+                if(user !== 'admin' || pass !== 'admin123') {
+                    showToast("Kredensial Admin salah! Baca Hint di bawah.", "error");
+                    return;
+                }
+                appState.currentUser = "Super Administrator";
+            } else {
+                appState.currentUser = user;
+            }
+
+            appState.currentRole = role;
+            setupWorkspaceForRole();
+            showToast(`Selamat datang ${appState.currentUser}! Berhasil masuk.`);
+        }
+
+        function handleLogout() {
+            appState.currentRole = null;
+            appState.currentUser = "";
+            document.getElementById('app-workspace').classList.add('hidden');
+            document.getElementById('view-login').classList.remove('hidden');
+            document.getElementById('formLogin').reset();
+            adjustLoginHint();
+        }
+        // APP WORKSPACE DISPATCHER FOR TARGET ROLE
+        function setupWorkspaceForRole() {
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('app-workspace').classList.remove('hidden');
+            
+            // Atur Visibilitas Navigasi Sidebar berdasarkan Role
+            const isUser = appState.currentRole === 'user';
+            document.getElementById('nav-user-menu').style.display = isUser ? 'block' : 'none';
+            document.getElementById('nav-admin-menu').style.display = isUser ? 'none' : 'block';
+
+            // Sinkronisasi Data Profil Atas Navbar
+            document.getElementById('profileName').innerText = appState.currentUser;
+            const badge = document.getElementById('badgeRole');
+            badge.innerText = appState.currentRole.toUpperCase();
+            
+            const avatarBox = document.getElementById('avatarBox');
+            if(isUser) {
+                badge.className = "text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800";
+                avatarBox.className = "w-9 h-9 rounded-xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-sm shadow";
+                document.getElementById('sidebarBrand').className = "h-16 flex items-center px-6 border-b border-gray-100 bg-gradient-to-r from-emerald-600 to-teal-600 text-white";
+                switchSection('user-dashboard');
+            } else {
+                badge.className = "text-[9px] font-black uppercase px-2 py-0.5 rounded bg-indigo-100 text-indigo-800";
+                avatarBox.className = "w-9 h-9 rounded-xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow";
+                document.getElementById('sidebarBrand').className = "h-16 flex items-center px-6 border-b border-gray-100 bg-gradient-to-r from-indigo-600 to-slate-800 text-white";
+                switchSection('admin-dashboard');
+            }
+        }
+
+        function switchSection(sectionId) {
+            const sections = ['user-dashboard', 'user-tagihan', 'user-spp', 'user-pulsa', 'user-riwayat', 'admin-dashboard', 'admin-spp', 'admin-history'];
+            sections.forEach(id => document.getElementById(`view-${id}`).classList.add('hidden'));
+            
+            document.getElementById(`view-${sectionId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if(item.getAttribute('data-section') === sectionId) {
+                    item.classList.add(appState.currentRole === 'user' ? 'bg-emerald-50' : 'bg-indigo-50', appState.currentRole === 'user' ? 'text-emerald-600' : 'text-indigo-600');
+                } else {
+                    item.classList.remove('bg-emerald-50', 'text-emerald-600', 'bg-indigo-50', 'text-indigo-600');
+                }
+            });
+
+            document.getElementById('appBreadcrumb').innerText = sectionId.replace('-', ' ').toUpperCase();
+            if(window.innerWidth < 768) toggleSidebar(false);
+        }
+
+        function toggleSidebar(forceState = null) {
+            const sb = document.getElementById('sidebar');
+            if(forceState !== null) forceState ? sb.classList.remove('-translate-x-full') : sb.classList.add('-translate-x-full');
+            else sb.classList.toggle('-translate-x-full');
+        }
+        // GENERAL BILLS VALIDATION LOGIC (USER)
+        function setActiveBillTab(key) {
+            appState.activeTabBill = key;
+            document.querySelectorAll('.bill-tab').forEach(b => b.classList.remove('bg-emerald-600', 'text-white'));
+            document.getElementById(`tab-${key}`).classList.add('bg-emerald-600', 'text-white');
+            document.getElementById('billResultContainer').classList.add('hidden');
+            document.getElementById('formGeneralBill').reset();
+        }
+
+        function handleCheckBill(e) {
+            e.preventDefault();
+            const id = document.getElementById('billCustomerId').value.trim();
+            if(id.length < 8) {
+                document.getElementById('billInputError').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('billInputError').classList.add('hidden');
+            document.getElementById('billBtnText').innerText = "Memproses...";
+            document.getElementById('billBtnSpinner').classList.remove('hidden');
+
+            setTimeout(() => {
+                document.getElementById('billBtnText').innerText = "Cek Tagihan";
+                document.getElementById('billBtnSpinner').classList.add('hidden');
+
+                const res = DATABASE[appState.activeTabBill][id];
+                if(res) {
+                    const rc = document.getElementById('billResultContainer');
+                    rc.classList.remove('hidden');
+                    rc.innerHTML = `
+                        <div class="p-4 border rounded-2xl bg-gray-50 space-y-3 max-w-sm text-xs">
+                            <p class="font-bold text-gray-700">Detail Pelanggan</p>
+                            <div><span class="text-gray-400">Nama:</span> <b class="text-gray-800">${res.name}</b></div>
+                            <div><span class="text-gray-400">Keterangan:</span> <span>${res.desc}</span></div>
+                            <div class="flex justify-between items-center border-t pt-2 mt-2">
+                                <span class="font-bold text-sm text-emerald-600">${formatRupiah(res.amount)}</span>
+                                <button onclick="openCheckout('${appState.activeTabBill.toUpperCase()}', '${id}', ${res.amount})" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">Bayar</button>
+                            </div>
+                        </div>`;
+                } else {
+                    showToast("ID Pelanggan tidak terdaftar!", "error");
+                }
+            }, 800);
+        }
+        // COLLEGE SPP RUNTIME HANDLING SYSTEM (USER)
+        let currentSppTargetNim = "";
+        function handleCheckSpp(e) {
+            e.preventDefault();
+            const nim = document.getElementById('sppNimInput').value.trim();
+            document.getElementById('sppBtnText').innerText = "Mengambil...";
+            
+            setTimeout(() => {
+                document.getElementById('sppBtnText').innerText = "Ambil Manifes SPP";
+                const student = DATABASE.spp[nim];
+                if(student) {
+                    currentSppTargetNim = nim;
+                    document.getElementById('sppResultWrapper').classList.remove('hidden');
+                    document.getElementById('sppStudentName').innerText = student.name;
+                    refreshUserSppTable(student.items);
+                } else {
+                    showToast("NIM Mahasiswa tidak ditemukan!", "error");
+                }
+            }, 600);
+        }
+
+        function refreshUserSppTable(items) {
+            const tbody = document.getElementById('sppTableBody');
+            tbody.innerHTML = "";
+            document.getElementById('sppCheckoutPanel').classList.add('hidden');
+            items.forEach(item => {
+                const isLunas = item.status === 'paid';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3"><input type="checkbox" value="${item.id}" data-cost="${item.amount}" ${isLunas ? 'disabled' : 'onclick="calculateUserSppCost()"'} class="spp-cb w-4 h-4 text-emerald-600"></td>
+                    <td class="p-3 font-bold text-gray-700">${item.desc}</td>
+                    <td class="p-3">${formatRupiah(item.amount)}</td>
+                    <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isLunas ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${isLunas ? 'LUNAS' : 'BELUM BAYAR'}</span></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function calculateUserSppCost() {
+            const cbs = document.querySelectorAll('.spp-cb:checked');
+            let sum = 0;
+            cbs.forEach(cb => sum += parseInt(cb.getAttribute('data-cost')));
+            
+            const p = document.getElementById('sppCheckoutPanel');
+            if(cbs.length > 0) {
+                p.classList.remove('hidden');
+                document.getElementById('sppCountChecked').innerText = cbs.length;
+                document.getElementById('sppTotalAmountText').innerText = formatRupiah(sum);
+            } else { p.classList.add('hidden'); }
+        }
+
+        function processSppPayment() {
+            const cbs = document.querySelectorAll('.spp-cb:checked');
+            let sum = 0, ids = [];
+            cbs.forEach(cb => { sum += parseInt(cb.getAttribute('data-cost')); ids.push(cb.value); });
+            openCheckout('SPP_KULIAH', `${currentSppTargetNim} [${ids.length} Item]`, sum, { ids, nim: currentSppTargetNim });
+        }
+        // CELLULAR PROVIDER REALTIME IDENTIFICATION SYSTEM (USER)
+        function detectProvider() {
+            const val = document.getElementById('pulsaPhoneInput').value.trim();
+            document.querySelectorAll('.provider-card').forEach(c => c.className = "provider-card p-3 border border-gray-200 rounded-xl opacity-30");
+            
+            if(val.length >= 4 && val.startsWith('08')) {
+                const pre = val.substring(0, 4);
+                let cid = "";
+                if(['0811', '0812', '0813'].includes(pre)) cid = "prov-telkomsel";
+                else if(['0815', '0816'].includes(pre)) cid = "prov-indosat";
+                else if(['0817', '0818', '0819'].includes(pre)) cid = "prov-xl";
+                else if(['0896', '0897'].includes(pre)) cid = "prov-tri";
+                
+                if(cid) {
+                    document.getElementById(cid).className = "provider-card p-3 border border-emerald-500 rounded-xl bg-emerald-50 font-black text-emerald-700 scale-105 transition-all";
+                    document.getElementById('pulsaDenomContainer').classList.remove('hidden');
+                    return;
+                }
+            }
+            document.getElementById('pulsaDenomContainer').classList.add('hidden');
+        }
+
+        function selectPulsaDenom(nom, harga) {
+            const hp = document.getElementById('pulsaPhoneInput').value.trim();
+            if(hp.length < 10) {
+                document.getElementById('pulsaPhoneError').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('pulsaPhoneError').classList.add('hidden');
+            openCheckout('PULSA_REGULER', hp, harga);
+        }
+        // TRANSACTION GATEWAY SYSTEMS ENGINE
+        function openCheckout(prod, target, total, meta = null) {
+            appState.currentCheckout = { prod, target, total, meta };
+            document.getElementById('checkProduct').innerText = prod;
+            document.getElementById('checkTarget').innerText = target;
+            document.getElementById('checkTotal').innerText = formatRupiah(total);
+            document.getElementById('checkoutModal').classList.remove('hidden');
+        }
+
+        function closeCheckoutModal() { document.getElementById('checkoutModal').classList.add('hidden'); }
+
+        function executePayment() {
+            const pm = document.querySelector('input[name="paymentMethod"]:checked')?.value || "Virtual Account";
+            const co = appState.currentCheckout;
+            if(!co) return;
+
+            if(pm === "Saldo Dompet" && appState.balance < co.total) {
+                showToast("Saldo Dompet Simulasi tidak memadai!", "error");
+                closeCheckoutModal();
+                return;
+            }
+
+            document.getElementById('payBtnText').innerText = "Mengamankan Dana...";
+            document.getElementById('payBtnSpinner').classList.remove('hidden');
+
+            setTimeout(() => {
+                document.getElementById('payBtnText').innerText = "Selesaikan Pembayaran";
+                document.getElementById('payBtnSpinner').classList.add('hidden');
+
+                if(pm === "Saldo Dompet") appState.balance -= co.total;
+
+                // Mutasi Status Manifes Database Lokal jika SPP sukses terbayar
+                if(co.prod === "SPP_KULIAH" && co.meta) {
+                    const list = DATABASE.spp[co.meta.nim].items;
+                    co.meta.ids.forEach(id => { const match = list.find(x => x.id === id); if(match) match.status = 'paid'; });
+                    refreshUserSppTable(list);
+                }
+
+                // Append Transaksi Baru ke Log Riwayat Lokal Storage
+                const txId = 'TX-' + Math.floor(100000 + Math.random() * 900000);
+                const itemLog = { id: txId, date: new Date().toLocaleString('id-ID'), product: co.prod, target: co.target, total: co.total, method: pm };
+                appState.history.unshift(itemLog);
+                
+                localStorage.setItem('bk_pro_hist', JSON.stringify(appState.history));
+                localStorage.setItem('bk_pro_bal', appState.balance);
+
+                closeCheckoutModal();
+                showToast("Sukses Terbayar!");
+                updateUserDashboardUI();
+                renderAllHistoryTables();
+                
+                // Buka Modal Struk Bukti Lunas Cetak
+                openReceiptModal(itemLog);
+            }, 1000);
+        }
+
+        function openReceiptModal(log) {
+            document.getElementById('receiptDetails').innerHTML = `
+                <div class="flex justify-between"><span>ID TRX</span><span class="font-bold text-gray-800">${log.id}</span></div>
+                <div class="flex justify-between"><span>Waktu</span><span>${log.date}</span></div>
+                <div class="flex justify-between"><span>Produk</span><span class="font-bold">${log.product}</span></div>
+                <div class="flex justify-between"><span>Target</span><span>${log.target}</span></div>
+                <div class="flex justify-between border-t border-dashed pt-2 font-black text-gray-900"><span>TOTAL</span><span>${formatRupiah(log.total)}</span></div>`;
+            document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        function closeReceiptModal() {
+            document.getElementById('receiptModal').classList.add('hidden');
+            document.getElementById('formGeneralBill').reset();
+            document.getElementById('billResultContainer').classList.add('hidden');
+            document.getElementById('pulsaPhoneInput').value = "";
+            detectProvider();
+        }
+        // ADMIN SPECIFIC OPERATIONAL FUNCTIONS
+        function renderAdminSppTable() {
+            const tbody = document.getElementById('adminSppTableBody');
+            tbody.innerHTML = "";
+            Object.keys(DATABASE.spp).forEach(nim => {
+                const data = DATABASE.spp[nim];
+                data.items.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50";
+                    tr.innerHTML = `
+                        <td class="p-3 font-mono font-bold">${nim}</td>
+                        <td class="p-3">${data.name}</td>
+                        <td class="p-3">${item.desc}</td>
+                        <td class="p-3 font-semibold">${formatRupiah(item.amount)}</td>
+                        <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.status==='paid'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'}">${item.status.toUpperCase()}</span></td>
+                        <td class="p-3 text-center"><button onclick="openAdminEditStatus('${nim}', '${item.id}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 font-bold px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-pen-to-square"></i> Ubah Status</button></td>`;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        function openAdminEditStatus(nim, itemId) {
+            appState.adminEditing = { nim, itemId };
+            const currentItem = DATABASE.spp[nim].items.find(x => x.id === itemId);
+            document.getElementById('editSppStatus').value = currentItem.status;
+            document.getElementById('adminEditModal').classList.remove('hidden');
+        }
+
+        function closeAdminEditModal() { document.getElementById('adminEditModal').classList.add('hidden'); }
+
+        function saveAdminSppStatus() {
+            const ed = appState.adminEditing;
+            if(!ed) return;
+            const newStatus = document.getElementById('editSppStatus').value;
+            const item = DATABASE.spp[ed.nim].items.find(x => x.id === ed.itemId);
+            if(item) item.status = newStatus;
+            
+            closeAdminEditModal();
+            showToast("Database SPP sukses di-update Admin!", "info");
+            renderAdminSppTable();
+        }
+
+        function clearGlobalLogs() {
+            if(confirm("Wipe logs global?")) { appState.history = []; localStorage.removeItem('bk_pro_hist'); renderAllHistoryTables(); }
+        }
+
+        // FORMATTER & INTERNET SYNC MUTATION UTILS
+        function formatRupiah(v) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits:0 }).format(v); }
+        
+        function showToast(m, t='success') {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `p-4 rounded-xl shadow-xl text-white font-bold text-xs flex items-center justify-between bg-emerald-600 pointer-events-auto`;
+            if(t === 'error') el.classList.replace('bg-emerald-600', 'bg-red-600');
+            if(t === 'info') el.classList.replace('bg-emerald-600', 'bg-indigo-600');
+            el.innerHTML = `<span>${m}</span>`;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 3500);
+        }
+
+        function renderAllHistoryTables() {
+            const ubody = document.getElementById('userHistoryTableBody');
+            const abody = document.getElementById('adminHistoryTableBody');
+            ubody.innerHTML = ""; abody.innerHTML = "";
+            
+            let totalRevenue = 0;
+            if(appState.history.length === 0) {
+                const empty = `<tr><td colspan="6" class="text-center py-4 text-gray-400">Belum terdapat data transaksi log.</td></tr>`;
+                ubody.innerHTML = empty; abody.innerHTML = empty;
+                document.getElementById('adminStatRevenue').innerText = formatRupiah(0);
+                document.getElementById('adminStatCount').innerText = "0 Transaksi";
+                return;
+            }
+
+            appState.history.forEach(log => {
+                totalRevenue += log.total;
+                const row = `<tr><td class="p-3"><b>${log.date}</b><br><span class="text-[10px] text-gray-400">${log.id}</span></td><td class="p-3 font-bold">${log.product}</td><td class="p-3">${log.target}</td><td class="p-3 font-bold text-emerald-600">${formatRupiah(log.total)}</td><td class="p-3 text-center">${log.method}</td></tr>`;
+                ubody.innerHTML += row;
+                
+                const aRow = `<tr><td class="p-3"><b>${log.date}</b><br>${log.id}</td><td class="p-3 font-bold">${log.product}</td><td class="p-3">${log.target}</td><td class="p-3 font-bold text-indigo-600">${formatRupiah(log.total)}</td><td class="p-3">${log.method}</td><td class="p-3 text-center"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">SUCCESS</span></td></tr>`;
+                abody.innerHTML += aRow;
+            });
+
+            document.getElementById('adminStatRevenue').innerText = formatRupiah(totalRevenue);
+            document.getElementById('adminStatCount').innerText = `${appState.history.length} Transaksi`;
+        }
+
+        function updateUserDashboardUI() { document.getElementById('userBalanceText').innerText = formatRupiah(appState.balance); }
+
+        // BOOTSTRAP INITIALIZATION ON LOAD
+        window.addEventListener('DOMContentLoaded', () => {
+            const h = localStorage.getItem('bk_pro_hist');
+            const b = localStorage.getItem('bk_pro_bal');
+            if(h) appState.history = JSON.parse(h);
+            if(b) appState.balance = parseInt(b);
+            
+            updateUserDashboardUI();
+            renderAllHistoryTables();
+            renderAdminSppTable();
+            adjustLoginHint();
+        });
+    </script>
+</body>
+</html>
